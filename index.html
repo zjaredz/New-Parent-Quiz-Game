@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quiz Game</title>
+    <title>New Parent Quiz Game</title>
     <style>
         * {
             margin: 0;
@@ -16,9 +16,9 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
-            align-items: flex-start;      /* ← Changed to flex-start */
+            align-items: flex-start;
             justify-content: center;
-            padding-top: 40px;            /* ← Add some top spacing */
+            padding-top: 40px;
         }
 
         .container {
@@ -52,7 +52,7 @@
             font-size: 1.8em;
         }
 
-        /* New control row styling */
+        /* Control row styling */
         .control-row {
             display: flex;
             align-items: center;
@@ -63,7 +63,7 @@
             flex-wrap: wrap;
         }
 
-        .control-row .question-count-select {
+        .control-row select {
             flex: 0 0 auto;
             min-width: 120px;
             max-width: 150px;
@@ -79,14 +79,13 @@
             margin: 0;
         }
 
-        /* Responsive adjustments for control row */
         @media (max-width: 768px) {
             .control-row {
                 flex-direction: column;
                 gap: 10px;
             }
             
-            .control-row .question-count-select,
+            .control-row select,
             .control-row .button {
                 width: 100%;
                 max-width: none;
@@ -124,7 +123,6 @@
             border-color: #667eea;
         }
 
-        /* Icon styling - much larger and positioned left */
         .category-icon {
             font-size: 3em;
             margin-right: 20px;
@@ -136,7 +134,6 @@
             height: 80px;
         }
 
-        /* Content area for text */
         .category-content {
             flex: 1;
             display: flex;
@@ -144,7 +141,6 @@
             justify-content: center;
         }
 
-        /* Category title */
         .category-name {
             font-size: 1.2em;
             font-weight: bold;
@@ -152,7 +148,6 @@
             color: inherit;
         }
 
-        /* Category description */
         .category-description {
             font-size: 0.9em;
             margin: 0 0 8px 0;
@@ -160,231 +155,41 @@
             line-height: 1.3;
         }
 
-        /* Question count stats */
         .category-stats {
             font-size: 0.8rem;
             opacity: 0.7;
             margin: 0;
-            padding: 0;
-            border: none;
-            text-align: left;
-            font-weight: 500;
-        }
-
-        .category-item input[type="checkbox"] {
-            margin-right: 10px;
-            transform: scale(1.2);
-        }
-
-        /* CSS for Category Question Count Display */
-        /* Add this to your existing <style> section in index.html */
-
-        .category-stats {
-            font-size: 0.8rem;
-            color: #666;
-            margin-top: 8px;
             padding-top: 8px;
             border-top: 1px solid rgba(0, 0, 0, 0.1);
             text-align: center;
             font-weight: 500;
         }
 
-        /* Enhanced styling with icon-like appearance */
-        .category-stats::before {
-            display: none;
-        }
-
-        /* Selected state adjustments */
-        .category-item.selected .category-name {
-            color: white;
-        }
-
-        .category-item.selected .category-description {
+        .category-item.selected .category-name,
+        .category-item.selected .category-description,
+        .category-item.selected .category-stats {
             color: rgba(255, 255, 255, 0.9);
         }
 
-        .category-item.selected .category-stats {
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        /* Remove checkbox styling (no longer needed) */
-        .category-item input[type="checkbox"] {
-            display: none;
-        }
-
-        /* Hide the checkmark indicator */
-        .category-selected-indicator {
-            display: none;
-        }
-
-        /* Dark mode support (if you have dark mode) */
-        @media (prefers-color-scheme: dark) {
-            .category-stats {
-                color: #999;
-                border-top-color: rgba(255, 255, 255, 0.1);
-            }
-        }
-
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {
-            .category-selection {
-                grid-template-columns: 1fr;
-            }
-            
-            .category-item {
-                padding: 15px;
-                min-height: 70px;
-            }
-            
-            .category-icon {
-                font-size: 2.5em;
-                width: 60px;
-                height: 60px;
-                margin-right: 15px;
-            }
-            
-            .category-name {
-                font-size: 1.1em;
-            }
-            
-            .category-description {
-                font-size: 0.85em;
-            }
-        }
-
-        /* Alternative styling without icon (cleaner look) */
-        /*
-        .category-stats {
-            font-size: 0.8rem;
-            color: #888;
-            margin-top: 10px;
-            text-align: center;
-            font-weight: 400;
-            opacity: 0.8;
-        }
-        */
-
-        /* Hover effect to make counts more prominent on hover */
-        .category-card:hover .category-stats {
-            color: #444;
-            font-weight: 600;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            .category-card:hover .category-stats {
-                color: #ccc;
-            }
-        }
-
-        .settings-group {
-            margin: 30px 0;
-            text-align: left;
-        }
-
-        .settings-group label {
-            display: block;
-            margin-bottom: 10px;
-            font-weight: bold;
-            color: #555;
-        }
-
-        .settings-group select,
-        .settings-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            font-size: 16px;
-            background: white;
-        }
-        .question-count-select {
-            padding: 12px;
-            border-radius: 8px;
-            border: 2px solid #e9ecef;
-            font-size: 16px;
-            min-width: 200px;
-            background: white;
-            width: 100%;
-        }
-
-        .question-count-select:disabled option {
-            color: #999;
-        }
-
-        /* Enhanced Question Count Dropdown Styling */
-        .question-count-select {
+        select {
             padding: 12px 16px;
             border-radius: 8px;
             border: 2px solid #667eea;
             font-size: 16px;
-            min-width: 200px;
             background: white;
-            width: 100%;
             cursor: pointer;
             transition: all 0.3s ease;
-            appearance: none; /* Remove default dropdown arrow */
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 12px center;
-            background-repeat: no-repeat;
-            background-size: 16px;
-            padding-right: 40px;
         }
 
-        .question-count-select:hover {
-            border-color: #667eea;
+        select:hover {
+            border-color: #5a6fd8;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-        .question-count-select:focus {
+        select:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
-        }
-
-        /* Disabled option styling */
-        .question-count-select option:disabled {
-            color: #999;
-            background-color: #f5f5f5;
-            font-style: italic;
-        }
-
-        /* Firefox specific styling for disabled options */
-        .question-count-select option[disabled] {
-            color: #999 !important;
-            background-color: #f5f5f5 !important;
-        }
-
-        /* Enhanced visual feedback for disabled state */
-        .question-count-select:has(option:disabled:checked) {
-            border-color: #dc3545;
-            background-color: #fff5f5;
-        }
-
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {
-            .question-count-select {
-                font-size: 16px; /* Prevent zoom on iOS */
-                min-width: 100%;
-            }
-        }
-
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
-            .question-count-select {
-                background-color: #2d3748;
-                border-color: #4a5568;
-                color: #e2e8f0;
-                background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%9ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-            }
-            
-            .question-count-select:hover {
-                border-color: #667eea;
-            }
-            
-            .question-count-select option:disabled {
-                color: #718096;
-                background-color: #1a202c;
-            }
         }
 
         .button {
@@ -409,7 +214,6 @@
             transform: none;
         }
 
-        /* Special styling for Select All/None buttons */
         .button.select-button {
             background: #667eea;
             color: white;
@@ -432,18 +236,6 @@
             margin-bottom: 25px;
             line-height: 1.6;
         }
-
-        .option-button.correct {
-            border-color: #28a745 !important;
-            background: #d4edda !important;
-            color: #155724 !important;
-        }
-
-        .option-button.incorrect {
-            border-color: #dc3545 !important;
-            background: #f8d7da !important;
-            color: #721c24 !important;
-}
 
         .question-info {
             display: flex;
@@ -476,6 +268,7 @@
             border-radius: 20px;
             cursor: pointer;
             font-size: 14px;
+            transition: all 0.3s ease;
         }
 
         .flag-button.flagged {
@@ -483,7 +276,6 @@
             color: white;
         }
 
-        
         .option-button {
             background: #f8f9fa;
             border: 2px solid #e9ecef;
@@ -524,36 +316,6 @@
             cursor: not-allowed;
             opacity: 0.7;
         }
-
-        #quiz-screen {
-            position: relative;
-            padding-bottom: 80px; /* Reserve space at bottom */
-        }
-
-        /* Keep answer buttons in reserved space */
-        #quiz-screen #answer-buttons-container {
-            position: absolute;
-            bottom: 20px;
-            left: 40px;
-            right: 40px;
-        }
-
-        /* Make explanation view fill available space */
-        #quiz-screen #explanation-view {
-            margin-top: 20px;
-            display: flex;
-            flex-direction: column;
-            min-height: 200px; /* Minimum height to push buttons down */
-        }
-
-        /* Make the blue explanation box grow to fill space */
-        #quiz-screen #explanation-view > div:nth-child(2) {
-            /* This targets the blue explanation box */
-            flex-grow: 1;
-            min-height: 240px; /* Ensure it's always reasonably sized */
-        }
-
-
 
         .explanation {
             background: #e7f3ff;
@@ -631,6 +393,26 @@
             .category-selection {
                 grid-template-columns: 1fr;
             }
+            
+            .category-item {
+                padding: 15px;
+                min-height: 70px;
+            }
+            
+            .category-icon {
+                font-size: 2.5em;
+                width: 60px;
+                height: 60px;
+                margin-right: 15px;
+            }
+            
+            .category-name {
+                font-size: 1.1em;
+            }
+            
+            .category-description {
+                font-size: 0.85em;
+            }
         }
     </style>
 </head>
@@ -638,24 +420,25 @@
     <div class="container">
         <!-- Start Screen -->
         <div id="start-screen" class="screen active">
-            <h1>👶 New Parent Quiz Game</h1>
+            <h1>👨‍👩‍👶 New Parent Quiz Game</h1>
             
-            <!-- New control row with dropdown and buttons -->
             <div class="control-row">
-                <select id="question-count-select" class="question-count-select">
-                    <option value="5">5 Questions</option>
-                    <option value="10">10 Questions</option>
-                    <option value="15">15 Questions</option>
-                    <option value="20">20 Questions</option>
+                <button id="start-quiz" class="button" disabled>Start Quiz</button>
+                
+                <select id="question-count-select">
+                    <!-- Options populated dynamically -->
+                </select>
+
+                <select id="difficulty-select">
+                    <!-- Options populated dynamically -->
                 </select>
                 
-                <button id="start-quiz" class="button" disabled>Start Quiz</button>
                 <button id="select-all" class="button select-button">All Categories</button>
                 <button id="select-none" class="button select-button">Deselect All</button>
             </div>
             
             <div id="category-selection" class="category-selection">
-                <!-- Categories will be populated by JavaScript -->
+                <!-- Categories populated by JavaScript -->
             </div>
             
             <div class="selected-info">
@@ -676,11 +459,11 @@
             
             <div class="question-container">
                 <div id="question-text" class="question-text">
-                    <!-- Question will be populated by JavaScript -->
+                    <!-- Question populated by JavaScript -->
                 </div>
                 
                 <div id="options-container">
-                    <!-- Answer options will be populated by JavaScript -->
+                    <!-- Answer options populated by JavaScript -->
                 </div>
             </div>
             
@@ -700,14 +483,14 @@
                 <div id="final-score" class="score-value">0/10</div>
                 <div id="grade-display" class="grade-display">F</div>
                 <div id="results-summary">
-                    <!-- Score breakdown will be populated by JavaScript -->
+                    <!-- Score breakdown populated by JavaScript -->
                 </div>
             </div>
             
             <div id="flagged-questions" class="flagged-questions" style="display: none;">
                 <h3>📌 Flagged Questions for Review</h3>
                 <div id="flagged-list">
-                    <!-- Flagged questions will be listed here -->
+                    <!-- Flagged questions listed here -->
                 </div>
                 <button id="review-flagged" class="button">Review Details</button>
             </div>
@@ -716,7 +499,4 @@
         </div>
     </div>
 
-    <!-- JavaScript Modules -->
     <script type="module" src="js/quiz.js"></script>
-</body>
-</html>
