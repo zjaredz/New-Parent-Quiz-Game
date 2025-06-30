@@ -1,13 +1,11 @@
 /**
  * Quiz Module - Main Game Logic and Initialization
- * Coordinates all other modules and manages quiz state
  */
 
 import { QuizConfig } from './config.js';
 import { QuizUtils } from './utils.js';
-import { CATEGORIES, getQuestionsByCategories, getRandomQuestions, QUESTIONS } from './questions.js';
+import { CATEGORIES, getQuestionsByCategories, QUESTIONS } from './questions.js';
 import { QuizUI } from './ui.js';
-//import { showErrorMessage, clearErrorMessage } from './ui.js';
 
 // Game state
 let gameState = {
@@ -19,7 +17,8 @@ let gameState = {
     score: 0,
     startTime: null,
     categoryTags: [],
-    questionCount: 10
+    questionCount: QuizConfig.DEFAULT_QUESTION_COUNT,
+    selectedDifficulty: 'all'
 };
 
 /**
@@ -29,8 +28,6 @@ function init() {
     try {
         QuizUI.init();
         setupEventListeners();
-        QuizUI.showSuccess('Quiz loaded successfully!');
-        console.log('Quiz application initialized successfully');
     } catch (error) {
         console.error('Failed to initialize quiz:', error);
         QuizUI.showError('Failed to load quiz. Please refresh the page.');
@@ -47,7 +44,6 @@ function setupEventListeners() {
     document.addEventListener('quiz:flagQuestion', handleFlagQuestion);
     document.addEventListener('quiz:restart', handleRestart);
     window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('visibilitychange', handleVisibilityChange);
 }
 
 /**
@@ -58,8 +54,8 @@ function handleQuizStart(event) {
         QuizUI.showLoading('Preparing your quiz...');
         
         const quizConfig = event.detail;
-        
         const validation = QuizUtils.validateQuizConfig(quizConfig);
+        
         if (!validation.isValid) {
             throw new Error(validation.error || 'Invalid quiz configuration');
         }
@@ -79,102 +75,11 @@ function handleQuizStart(event) {
         QuizUI.hideLoading();
         QuizUI.showScreen('quiz');
         displayCurrentQuestion();
-
-        console.log(`Quiz started with ${questions.length} questions`);
     } catch (error) {
         QuizUI.hideLoading();
         QuizUI.showError(`Failed to start quiz: ${error.message}`);
-        console.error('Quiz start error:', error);
     }
 }
-
-/**
- * Validate quiz configuration
- */
-/**
- * Enhanced quiz configuration validation with detailed error handling
- * @param {Object} quizConfig - Configuration object to validate
- * @returns {Object} - Validation result with success boolean and error message
- */
-/*   MOVED TO utils
-function validateQuizConfig(quizConfig) {
-    // Basic structure validation
-    if (!quizConfig || typeof quizConfig !== 'object') {
-        return {
-            isValid: false,
-            error: 'Invalid quiz configuration'
-        };
-    }
-
-    // Category validation
-    if (!quizConfig.categoryTags || !Array.isArray(quizConfig.categoryTags) || quizConfig.categoryTags.length === 0) {
-        return {
-            isValid: false,
-            error: 'Please select at least one category'
-        };
-    }
-
-    const count = quizConfig.questionCount;
-
-    // Handle 'flagged' option
-    if (count === 'flagged') {
-        const flaggedQuestions = QuizUtils.getFlaggedQuestions();
-        if (flaggedQuestions.length === 0) {
-            return {
-                isValid: false,
-                error: 'No flagged questions available. Flag some questions during quizzes first.'
-            };
-        }
-        return { isValid: true };
-    }
-
-    // Handle 'all' option
-    if (count === 'all') {
-        const availableQuestions = getQuestionsByCategories(quizConfig.categoryTags);
-        if (availableQuestions.length === 0) {
-            return {
-                isValid: false,
-                error: 'No questions available for selected categories'
-            };
-        }
-        return { isValid: true };
-    }
-
-    // Numeric validation
-    const numCount = parseInt(count);
-    if (isNaN(numCount)) {
-        return {
-            isValid: false,
-            error: 'Invalid question count selection'
-        };
-    }
-
-    if (numCount < 1) {
-        return {
-            isValid: false,
-            error: 'Question count must be at least 1'
-        };
-    }
-
-    if (numCount > 50) {
-        return {
-            isValid: false,
-            error: 'Question count cannot exceed 50'
-        };
-    }
-
-    // Check if enough questions exist for the requested count
-    const availableQuestions = getQuestionsByCategories(quizConfig.categoryTags);
-    if (availableQuestions.length < numCount) {
-        return {
-            isValid: false,
-            error: `Only ${availableQuestions.length} questions available for selected categories. Choose fewer questions or more categories.`
-        };
-    }
-
-    return { isValid: true };
-}
-*
 
 /**
  * Initialize game state
@@ -189,7 +94,9 @@ function initializeGameState(quizConfig) {
         score: 0,
         startTime: null,
         categoryTags: [...quizConfig.categoryTags],
-        questionCount: quizConfig.questionCount
+        questionCount: quizConfig.questionCount,
+        difficulty: quizConfig.difficulty || 'all',
+        selectedCategories: new Set(QuizConfig.DEFAULT_SELECTED_CATEGORIES)
     };
 }
 
@@ -204,19 +111,40 @@ function generateQuestions(categoryTags, requestedCount) {
     if (requestedCount === 'flagged') {
         return getFlaggedQuestions();
     }
-
-    const allAvailableQuestions = getQuestionsByCategories(categoryTags);
     
-    if (allAvailableQuestions.length === 0) {
+    const allAvailableQuestions = getQuestionsByCategories(categoryTags);
+    const filteredQuestions = filterQuestionsByDifficulty(allAvailableQuestions, gameState.difficulty);
+
+    if (filteredQuestions.length === 0) {
         return [];
     }
 
     if (requestedCount === 'all') {
-        return QuizUtils.shuffleArray([...allAvailableQuestions]);
+        return QuizUtils.shuffleArray([...filteredQuestions]);
     }
 
-    // Numeric count - use existing logic
-    return getRandomQuestions(categoryTags, parseInt(requestedCount));
+    const count = parseInt(requestedCount);
+    return QuizUtils.shuffleArray([...filteredQuestions]).slice(0, count);
+}
+
+/**
+ * Filter questions by difficulty level
+ */
+function filterQuestionsByDifficulty(questions, difficultyFilter) {
+    if (difficultyFilter === 'all') {
+        return questions;
+    }
+    
+    const difficultyMap = {
+        'easy': ['easy'],
+        'easy-medium': ['easy', 'medium'], 
+        'medium': ['medium'],
+        'medium-hard': ['medium', 'hard'],
+        'hard': ['hard']
+    };
+    
+    const allowedDifficulties = difficultyMap[difficultyFilter] || ['easy', 'medium', 'hard'];
+    return questions.filter(question => allowedDifficulties.includes(question.difficulty));
 }
 
 /**
@@ -247,7 +175,6 @@ function displayCurrentQuestion() {
     const questionNumber = gameState.currentQuestionIndex + 1;
     const totalQuestions = gameState.questions.length;
 
-    // Check if question is flagged using persistent storage
     const flaggedIds = QuizUtils.getFlaggedQuestions();
     const isFlagged = flaggedIds.includes(currentQuestion.id);
 
@@ -264,9 +191,7 @@ function displayCurrentQuestion() {
  * Handle answer selection
  */
 function handleAnswerSelected(event) {
-    if (!gameState.isActive) {
-        return;
-    }
+    if (!gameState.isActive) return;
 
     const { selectedIndex } = event.detail;
     const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
@@ -304,9 +229,7 @@ function handleAnswerSelected(event) {
  * Handle next question
  */
 function handleNextQuestion() {
-    if (!gameState.isActive) {
-        return;
-    }
+    if (!gameState.isActive) return;
 
     gameState.currentQuestionIndex++;
 
@@ -338,8 +261,6 @@ function handleFlagQuestion() {
     }
     
     QuizUI.updateFlagButton(!isFlagged);
-    
-    // Update dropdown options to reflect new flagged count
     document.dispatchEvent(new CustomEvent('flagged:updated'));
 }
 
@@ -353,7 +274,6 @@ function finishQuiz() {
     const totalTime = endTime - gameState.startTime;
     const results = calculateResults(totalTime);
     
-    console.log('Quiz completed. Results:', results);
     QuizUI.displayResults(results);
 }
 
@@ -401,7 +321,6 @@ function calculateCategoryBreakdown() {
     gameState.answers.forEach((answer, index) => {
         const question = gameState.questions[index];
         
-        // Process each tag that matches our selected categories
         question.tags.forEach(tag => {
             if (gameState.categoryTags.includes(tag)) {
                 if (!breakdown[tag]) {
@@ -445,8 +364,6 @@ function handleRestart() {
         categoryTags: [],
         questionCount: 10
     };
-    
-    console.log('Quiz restarted');
 }
 
 /**
@@ -460,40 +377,10 @@ function handleBeforeUnload(event) {
     }
 }
 
-/**
- * Handle visibility change (tab switching, mobile app switching)
- */
-function handleVisibilityChange() {
-    if (gameState.isActive) {
-        if (document.hidden) {
-            console.log('Quiz paused due to visibility change');
-        } else {
-            console.log('Quiz resumed');
-        }
-    }
-}
-
-/**
- * Get current game state (for debugging)
- */
-function getGameState() {
-    return { ...gameState };
-}
-
-/**
- * Force finish quiz (for testing)
- */
-function forceFinish() {
-    if (gameState.isActive) {
-        finishQuiz();
-    }
-}
-
 // Export quiz module functions
 export const Quiz = {
     init,
-    getGameState,
-    forceFinish
+    getGameState: () => ({ ...gameState })
 };
 
 // Initialize when module is loaded
