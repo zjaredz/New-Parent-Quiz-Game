@@ -5,7 +5,6 @@
 
 import { QuizConfig } from './config.js';
 import { QuizUtils } from './utils.js';
-import { Quiz } from './quiz.js';
 import { CATEGORIES, QUESTIONS } from './questions.js';
 
 // Rich category metadata for UI display
@@ -105,6 +104,24 @@ const CATEGORY_UI_DATA = {
         name: 'Special Situations',
         description: 'Unique circumstances and challenges',
         color: '#ff4757'
+    },
+    'early-parenting': {
+        icon: '🤗',
+        name: 'Early Parenting (0-12 months)',
+        description: 'Bonding and responsive caregiving with baby',
+        color: '#a55eea'
+    },
+    'toddler-parenting': {
+        icon: '👨‍👩‍👧',
+        name: 'Toddler Parenting (1-3 years)',
+        description: 'Gentle discipline and boundary setting',
+        color: '#26de81'
+    },
+    'preschool-parenting': {
+        icon: '🎨',
+        name: 'Preschool Parenting (3-5 years)',
+        description: 'Teaching emotional skills and school readiness',
+        color: '#fd79a8'
     }
 };
 
@@ -112,7 +129,8 @@ const CATEGORY_UI_DATA = {
 const state = {
     currentScreen: 'start',
     selectedCategories: new Set(),
-    questionCount: 10,
+    selectedDifficulty: 'all',
+    questionCount: QuizConfig.DEFAULT_QUESTION_COUNT,
     explanationMode: false,
     currentQuestionCache: null,
     elements: {}
@@ -127,6 +145,9 @@ function init() {
     showScreen('start');
     renderCategoryGrid();
     renderQuestionCountOptions();
+    renderDifficultyOptions();
+    applyDefaultSelections();
+    addMobileOptimizations();
 }
 
 /**
@@ -141,6 +162,7 @@ function cacheElements() {
     // Start screen elements
     state.elements.categoryGrid = document.getElementById('category-selection');
     state.elements.questionCountSelect = document.getElementById('question-count-select');
+    state.elements.difficultySelect = document.getElementById('difficulty-select');
     state.elements.selectedCount = document.getElementById('selected-count');
     state.elements.startButton = document.getElementById('start-quiz');
 
@@ -165,11 +187,19 @@ function cacheElements() {
  * Setup event listeners for UI interactions
  */
 function setupEventListeners() {
-    // Question count dropdown
+    // Dropdown change handlers
     if (state.elements.questionCountSelect) {
         state.elements.questionCountSelect.addEventListener('change', handleQuestionCountChange);
         state.elements.questionCountSelect.addEventListener('change', updateStartButtonState);
     }
+
+    if (state.elements.difficultySelect) {
+        state.elements.difficultySelect.addEventListener('change', handleDifficultyChange);
+        state.elements.difficultySelect.addEventListener('change', updateStartButtonState);
+    }
+
+    // Button event listeners
+    setupButtonListeners();
 
     // Listen for flagged questions updates
     document.addEventListener('flagged:updated', renderQuestionCountOptions);
@@ -182,14 +212,11 @@ function setupEventListeners() {
         }
     });
 
-    // Add mobile optimizations
-    addMobileOptimizations();
+    // Select All/None buttons
+    setupSelectButtons();
 
-    // Button event listeners
-    setupButtonListeners();
-
-    // Initial state update for start button
-    updateStartButtonState();
+    // Touch event handling for mobile
+    document.addEventListener('touchend', handleTouchEnd, { passive: false });
 }
 
 /**
@@ -208,6 +235,37 @@ function setupButtonListeners() {
             element.addEventListener('click', handler);
         }
     });
+}
+
+/**
+ * Setup Select All/None buttons
+ */
+function setupSelectButtons() {
+    const selectAllBtn = document.getElementById('select-all');
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', selectAllCategories);
+    }
+    
+    const selectNoneBtn = document.getElementById('select-none');
+    if (selectNoneBtn) {
+        selectNoneBtn.addEventListener('click', selectNoneCategories);
+    }
+}
+
+/**
+ * Apply default category selections
+ */
+function applyDefaultSelections() {
+    QuizConfig.DEFAULT_SELECTED_CATEGORIES.forEach(categoryId => {
+        const categoryElement = document.querySelector(`[data-category="${categoryId}"]`);
+        if (categoryElement) {
+            categoryElement.classList.add('selected');
+            state.selectedCategories.add(categoryId);
+        }
+    });
+    
+    updateSelectedCount();
+    updateStartButtonState();
 }
 
 /**
@@ -231,9 +289,6 @@ function addMobileOptimizations() {
             }
         }, 100);
     });
-
-    // Add touch event handling
-    document.addEventListener('touchend', handleTouchEnd, { passive: false });
 }
 
 /**
@@ -278,29 +333,42 @@ function showScreen(screenName) {
 }
 
 /**
+ * Render difficulty options dropdown
+ */
+function renderDifficultyOptions() {
+    if (!state.elements.difficultySelect) return;
+    
+    const options = QuizConfig.difficultyOptions || QuizConfig.DIFFICULTY_OPTIONS;
+    
+    state.elements.difficultySelect.innerHTML = options.map(opt => 
+        `<option value="${opt.value}">${opt.text}</option>`
+    ).join('');
+}
+
+/**
+ * Handle difficulty dropdown change
+ */
+function handleDifficultyChange(event) {
+    state.selectedDifficulty = event.target.value;
+}
+
+/**
  * Render category selection grid
  */
 function renderCategoryGrid() {
     if (!state.elements.categoryGrid || !CATEGORIES || !QUESTIONS) {
-        console.error('Missing required elements or data for category grid');
         return;
     }
 
-    // Calculate category counts
     const categoryCounts = QuizUtils.calculateCategoryCounts(QUESTIONS, CATEGORIES);
-    
     state.elements.categoryGrid.innerHTML = '';
 
-    // Create category cards
     Object.keys(CATEGORIES).forEach(categoryId => {
         const categoryName = CATEGORIES[categoryId];
         const uiData = CATEGORY_UI_DATA[categoryId];
         const questionCount = categoryCounts[categoryId] || 0;
         
-        if (!uiData) {
-            console.warn(`No UI data found for category: ${categoryId}`);
-            return;
-        }
+        if (!uiData) return;
 
         const categoryData = { ...uiData, name: categoryName };
         const categoryCard = createCategoryCard(categoryId, categoryData, questionCount);
@@ -311,7 +379,7 @@ function renderCategoryGrid() {
 }
 
 /**
- * Create category selection card with large icon on left
+ * Create category selection card
  */
 function createCategoryCard(categoryId, categoryData, questionCount) {
     const card = document.createElement('div');
@@ -362,52 +430,36 @@ function updateSelectedCount() {
     }
 }
 
-// Function to select all categories
+/**
+ * Select all categories
+ */
 function selectAllCategories() {
     const categoryItems = document.querySelectorAll('.category-item');
+    state.selectedCategories.clear();
+    
     categoryItems.forEach(item => {
-        if (!item.classList.contains('selected')) {
-            item.classList.add('selected');
-        }
+        item.classList.add('selected');
+        state.selectedCategories.add(item.dataset.category);
     });
-    updateSelectedCategoriesDisplay();
+    
+    updateSelectedCount();
     updateStartButtonState();
 }
 
-// Function to deselect all categories
+/**
+ * Deselect all categories
+ */
 function selectNoneCategories() {
     const categoryItems = document.querySelectorAll('.category-item');
+    state.selectedCategories.clear();
+    
     categoryItems.forEach(item => {
         item.classList.remove('selected');
     });
-    updateSelectedCategoriesDisplay();
+    
+    updateSelectedCount();
     updateStartButtonState();
 }
-
-// Function to update the selected categories count display
-function updateSelectedCategoriesDisplay() {
-    const selectedCategories = document.querySelectorAll('.category-item.selected');
-    const selectedCount = document.getElementById('selected-count');
-    selectedCount.textContent = selectedCategories.length;
-}
-
-// Add event listeners when the DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Select All button
-    const selectAllBtn = document.getElementById('select-all');
-    if (selectAllBtn) {
-        selectAllBtn.addEventListener('click', selectAllCategories);
-    }
-    
-    // Select None button
-    const selectNoneBtn = document.getElementById('select-none');
-    if (selectNoneBtn) {
-        selectNoneBtn.addEventListener('click', selectNoneCategories);
-    }
-});
-
-
-
 
 /**
  * Render question count options with dynamic flagged count
@@ -424,9 +476,15 @@ function renderQuestionCountOptions() {
         { value: 'flagged', text: `Flagged Questions (${flaggedCount})`, disabled: flaggedCount === 0 }
     ];
     
-    state.elements.questionCountSelect.innerHTML = options.map(opt => 
-        `<option value="${opt.value}" ${opt.disabled ? 'disabled' : ''}>${opt.text}</option>`
-    ).join('');
+    state.elements.questionCountSelect.innerHTML = options.map(opt => {
+        const isSelected = opt.value === QuizConfig.DEFAULT_QUESTION_COUNT || 
+                          (typeof opt.value === 'number' && opt.value === QuizConfig.DEFAULT_QUESTION_COUNT);
+        return `<option value="${opt.value}" ${opt.disabled ? 'disabled' : ''} ${isSelected ? 'selected' : ''}>${opt.text}</option>`;
+    }).join('');
+    
+    // Set the default value
+    state.elements.questionCountSelect.value = QuizConfig.DEFAULT_QUESTION_COUNT.toString();
+    state.questionCount = QuizConfig.DEFAULT_QUESTION_COUNT;
 }
 
 /**
@@ -441,16 +499,13 @@ function handleQuestionCountChange(event) {
  */
 function handleStartQuiz() {
     try {
-        const selectedCategoryElements = document.querySelectorAll('.category-item.selected');
-        const selectedCategoryTags = Array.from(selectedCategoryElements)
-            .map(element => element.dataset.category)
-            .filter(category => category);
-        
+        const selectedCategoryTags = Array.from(state.selectedCategories);
         const questionCountValue = state.elements.questionCountSelect?.value || '10';
 
         const quizConfig = {
             categoryTags: selectedCategoryTags,
-            questionCount: questionCountValue
+            questionCount: questionCountValue,
+            difficulty: state.selectedDifficulty
         };
 
         const validation = QuizUtils.validateQuizConfig(quizConfig);
@@ -465,7 +520,6 @@ function handleStartQuiz() {
         }));
 
     } catch (error) {
-        console.error('Error in handleStartQuiz:', error);
         showError('Failed to start quiz. Please try again.');
     }
 }
@@ -476,11 +530,7 @@ function handleStartQuiz() {
 function updateStartButtonState() {
     if (!state.elements.startButton) return;
     
-    const selectedCategoryElements = document.querySelectorAll('.category-item.selected');
-    const selectedCategoryTags = Array.from(selectedCategoryElements)
-        .map(element => element.dataset.category)
-        .filter(category => category);
-    
+    const selectedCategoryTags = Array.from(state.selectedCategories);
     const questionCountValue = state.elements.questionCountSelect?.value || '10';
     
     const quizConfig = {
@@ -498,22 +548,16 @@ function updateStartButtonState() {
  * Display current question
  */
 function displayQuestion(questionData, currentIndex, totalCount) {
-    if (!questionData) {
-        console.error('No question data provided to displayQuestion');
-        return;
-    }
+    if (!questionData) return;
 
-    // Cache current question data
     state.currentQuestionCache = questionData;
     state.explanationMode = false;
 
-    // Update UI
     updateProgress(currentIndex, totalCount);
     updateQuestionText(questionData.question);
     renderOptions(questionData.options);
     resetQuestionButtons();
     
-    // Update flag button state
     const flaggedIds = QuizUtils.getFlaggedQuestions();
     const isFlagged = flaggedIds.includes(questionData.id);
     updateFlagButton(isFlagged);
@@ -548,10 +592,7 @@ function updateQuestionText(questionText) {
  * Render answer options
  */
 function renderOptions(options) {
-    if (!state.elements.optionsContainer) {
-        console.error('Options container not found');
-        return;
-    }
+    if (!state.elements.optionsContainer) return;
 
     state.elements.optionsContainer.innerHTML = '';
     
@@ -585,7 +626,6 @@ function handleOptionSelect(selectedIndex) {
     optionButtons.forEach(button => button.disabled = true);
     optionButtons[selectedIndex].classList.add('selected');
     
-    // Emit event for quiz logic
     document.dispatchEvent(new CustomEvent('quiz:answerSelected', {
         detail: { selectedIndex }
     }));
@@ -629,7 +669,6 @@ function createAnswerButtons(explanation) {
         flex-wrap: wrap;
     `;
 
-    // Create buttons
     const explanationButton = createButton('explanation-btn', 'Explanation', 'button secondary-button', () => {
         showExplanationView(explanation);
     });
@@ -639,10 +678,7 @@ function createAnswerButtons(explanation) {
     buttonContainer.appendChild(explanationButton);
     buttonContainer.appendChild(nextButton);
 
-    // Insert after options container
     insertAfterElement(state.elements.optionsContainer, buttonContainer);
-
-    // Focus on next button for accessibility
     setTimeout(() => nextButton.focus(), 100);
 }
 
@@ -652,11 +688,9 @@ function createAnswerButtons(explanation) {
 function showExplanationView(explanationText) {
     state.explanationMode = true;
 
-    // Hide current UI elements
     hideElement(state.elements.optionsContainer);
     hideElement(document.getElementById('answer-buttons-container'));
 
-    // Get correct answer
     const currentQuestion = state.currentQuestionCache;
     const correctAnswer = currentQuestion ? currentQuestion.options[currentQuestion.correct] : 'N/A';
 
@@ -673,7 +707,6 @@ function createExplanationView(correctAnswer, explanationText) {
     explanationView.id = 'explanation-view';
     explanationView.style.cssText = 'margin-top: 20px; padding: 0 10px;';
 
-    // Create content sections
     const answerSection = createAnswerSection(correctAnswer);
     const explanationBox = createExplanationBox(explanationText);
     const navButtons = createExplanationNavigation();
@@ -682,7 +715,6 @@ function createExplanationView(correctAnswer, explanationText) {
     explanationView.appendChild(explanationBox);
     explanationView.appendChild(navButtons);
 
-    // Insert after question text
     insertAfterElement(state.elements.questionText, explanationView);
 }
 
@@ -738,9 +770,7 @@ function createExplanationNavigation() {
     navButtons.appendChild(backButton);
     navButtons.appendChild(nextButton);
 
-    // Focus on next button
     setTimeout(() => nextButton.focus(), 100);
-
     return navButtons;
 }
 
@@ -762,7 +792,6 @@ function resetQuestionButtons() {
     removeElement('answer-buttons-container');
     removeElement('explanation-view');
 
-    // Reset option button states
     const optionButtons = state.elements.optionsContainer?.querySelectorAll('.option-button') || [];
     optionButtons.forEach(button => {
         button.disabled = false;
@@ -801,10 +830,7 @@ function updateFlagButton(isFlagged) {
  * Display quiz results
  */
 function displayResults(results) {
-    if (!results) {
-        console.error('No results data provided');
-        return;
-    }
+    if (!results) return;
 
     updateResultsDisplay(results);
     displayFlaggedQuestions(results.flaggedQuestions || []);
@@ -815,19 +841,16 @@ function displayResults(results) {
  * Update results display elements
  */
 function updateResultsDisplay(results) {
-    // Update score
     if (state.elements.finalScore) {
         state.elements.finalScore.textContent = `${results.score}/${results.total}`;
     }
 
-    // Update grade
     if (state.elements.gradeDisplay && QuizUtils.calculateGrade) {
         const grade = QuizUtils.calculateGrade(results.percentage);
         state.elements.gradeDisplay.textContent = grade;
         state.elements.gradeDisplay.className = `grade-display grade-${grade.replace('+', 'plus').toLowerCase()}`;
     }
 
-    // Update summary
     if (state.elements.resultsSummary) {
         state.elements.resultsSummary.innerHTML = `
             <div class="result-stat">
@@ -897,11 +920,9 @@ function createFlaggedQuestionItem(question, index) {
  * Handle restart button click
  */
 function handleRestart() {
-    // Reset state
     state.selectedCategories.clear();
-    state.questionCount = 10;
+    state.questionCount = QuizConfig.DEFAULT_QUESTION_COUNT;
     
-    // Re-render UI
     renderQuestionCountOptions();
     if (state.elements.questionCountSelect) {
         state.elements.questionCountSelect.value = state.questionCount;
@@ -910,7 +931,6 @@ function handleRestart() {
     renderCategoryGrid();
     showScreen('start');
     
-    // Emit restart event
     document.dispatchEvent(new CustomEvent('quiz:restart'));
 }
 
@@ -1034,6 +1054,7 @@ function getState() {
 export const QuizUI = {
     init,
     showScreen,
+    applyDefaultSelections,
     displayQuestion,
     showAnswerFeedback,
     displayResults,
