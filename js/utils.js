@@ -420,7 +420,13 @@ export const QuizUtils = {
                 error: "Please select at least one category."
             };
         }
-
+        
+        if (quizConfig.difficulty && !['all', 'easy', 'easy-medium', 'medium', 'medium-hard', 'hard'].includes(quizConfig.difficulty)) {
+            return {
+                isValid: false,
+                error: 'Invalid difficulty selection'
+            };
+        }
         const count = quizConfig.questionCount;
         
         // Handle special cases
